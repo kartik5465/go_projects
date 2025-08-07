@@ -21,11 +21,14 @@ func HumanReadableSize(bytes int64) string {
 }
 
 func main() {
+	// env variable for folder path which needs to be checked
+	paths := os.Getenv("folder_path")
+
 	// Get the current time
 	currentTime := time.Now()
 
 	// Get a list of files in the specified directory
-	files, err := os.ReadDir("/home/kartik/Videos/")
+	files, err := os.ReadDir(paths)
 	if err != nil {
 		log.Fatal(err)
 	}
