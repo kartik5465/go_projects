@@ -39,10 +39,10 @@ func main() {
 
 		// If the file was modified in the last 5 minutes, print relevant details
 		if currentTime.Sub(fi.ModTime()) <= 5*time.Minute {
-			fmt.Printf("NEWLY ADDED: The file '%s' is %s long and was modified %s ago.\n", 
+			fmt.Printf("[%s] NEWLY ADDED: The file '%s' is %s long\n",
+				currentTime.Format("2006 Jan 02 15:04:05"),
 				file.Name(), 
-				HumanReadableSize(fi.Size()), 
-				time.Since(fi.ModTime()).Truncate(time.Second))
+				HumanReadableSize(fi.Size()))
 		}
 	}
 }
