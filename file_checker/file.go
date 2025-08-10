@@ -1,61 +1,68 @@
 package main
 
 import (
-	"fmt"
-	"log"
+    "log"
 	"math"
-	"os"
 	"strconv"
-	"time"
+	"os"
+    "github.com/fsnotify/fsnotify"
 )
-
 const (
-	RecentFileTime = 5 * time.Minute
-	unit = 1024
-)	
+	unit = 1000
+)
 
 func HumanReadableSize(bytes int64) string {
 	if bytes == 0 {
 		return "0 B"
 	}
 	sizes := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB"}
-	logUnit := math.Log(float64(unit))
-	i := int(math.Floor(math.Log(float64(bytes)) / logUnit))
-	size := float64(bytes) / math.Pow(unit, float64(i))
-	return strconv.FormatFloat(size, 'f', 2, 64) + " " + sizes[i]
+    logUnit := math.Log(float64(unit))
+    i := int(math.Floor(math.Log(float64(bytes)) / logUnit))
+    size := float64(bytes) / math.Pow(unit, float64(i))
+    return strconv.FormatFloat(size, 'f', 2, 64) + " " + sizes[i]
 }
 
 func main() {
-	// env variable for folder path which needs to be checked
-	//os.Setenv("folder_path", "/home/kartik/Videos")
-	paths := os.Getenv("folder_path")
+    // Create new watcher.
+    watcher, err := fsnotify.NewWatcher()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer watcher.Close()
 
-	// Get the current time
-	currentTime := time.Now()
+    // Start listening for events.
+    go func() {
+        for {
+            select {
+            case event, ok := <-watcher.Events:
+                if !ok {
+                    return
+                }
+				fileinfo, err := os.Stat(event.Name)
+                    if err != nil {
+                        log.Println("Error getting file info:", err)
+                        continue
+                    }
+				//log.Printf("size:%s",HumanReadableSize(fileinfo.Size()))
+                log.Printf("event: %s, File-size: %s", event, HumanReadableSize(fileinfo.Size()))
+                if event.Has(fsnotify.Write) {
+                    log.Println("modified file:", event.Name)
+                }
+            case err, ok := <-watcher.Errors:
+                if !ok {
+                    return
+                }
+                log.Println("error:", err)
+            }
+        }
+    }()
 
-	// Get a list of files in the specified directory
-	files, err := os.ReadDir(paths)
-	if err != nil {
-		log.Fatal(err)
-	}
+    // Add a path.
+    err = watcher.Add("/home/kartik/Videos")
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	// Loop through each file and check if it was modified in the last 5 minutes
-	for _, file := range files {
-		fi, err := file.Info()
-		if err != nil {
-			log.Printf("Error retrieving info for file %s: %v", file.Name(), err)
-			continue
-		}
-		mod_time := fi.ModTime()
-		formated_time := mod_time.Format("2006 Jan 02 15:04:05")
-
-		// If the file was modified in the last 5 minutes, print relevant details
-		if currentTime.Sub(mod_time) <= RecentFileTime {
-			fmt.Printf("[%s] File_Name:'%s', size: %s, Modified_time: [%s]\n",
-				currentTime.Format("2006 Jan 02 15:04:05"),
-				file.Name(), 
-				HumanReadableSize(fi.Size()),
-				formated_time)
-		}
-	}
+    // Block main goroutine forever.
+    <-make(chan struct{})
 }
