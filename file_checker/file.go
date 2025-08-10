@@ -3,25 +3,31 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"math"
+	"os"
 	"strconv"
 	"time"
 )
+
+const (
+	RecentFileTime = 5 * time.Minute
+	unit = 1024
+)	
 
 func HumanReadableSize(bytes int64) string {
 	if bytes == 0 {
 		return "0 B"
 	}
-	const unit = 1024 // Use 1000 for SI units (e.g., KB = 1000 bytes)
 	sizes := []string{"B", "KB", "MB", "GB", "TB", "PB", "EB"}
-	i := int(math.Floor(math.Log(float64(bytes)) / math.Log(unit)))
+	logUnit := math.Log(float64(unit))
+	i := int(math.Floor(math.Log(float64(bytes)) / logUnit))
 	size := float64(bytes) / math.Pow(unit, float64(i))
 	return strconv.FormatFloat(size, 'f', 2, 64) + " " + sizes[i]
 }
 
 func main() {
 	// env variable for folder path which needs to be checked
+	//os.Setenv("folder_path", "/home/kartik/Videos")
 	paths := os.Getenv("folder_path")
 
 	// Get the current time
@@ -37,15 +43,19 @@ func main() {
 	for _, file := range files {
 		fi, err := file.Info()
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("Error retrieving info for file %s: %v", file.Name(), err)
+			continue
 		}
+		mod_time := fi.ModTime()
+		formated_time := mod_time.Format("2006 Jan 02 15:04:05")
 
 		// If the file was modified in the last 5 minutes, print relevant details
-		if currentTime.Sub(fi.ModTime()) <= 5*time.Minute {
-			fmt.Printf("[%s] NEWLY ADDED: The file '%s' is %s long\n",
+		if currentTime.Sub(mod_time) <= RecentFileTime {
+			fmt.Printf("[%s] File_Name:'%s', size: %s, Modified_time: [%s]\n",
 				currentTime.Format("2006 Jan 02 15:04:05"),
 				file.Name(), 
-				HumanReadableSize(fi.Size()))
+				HumanReadableSize(fi.Size()),
+				formated_time)
 		}
 	}
 }
